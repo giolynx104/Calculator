@@ -7,15 +7,19 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
     private lateinit var display: TextView
+    private lateinit var operationDisplay: TextView
     private var currentInput = StringBuilder()
     private var currentOperator: String? = null
     private var firstOperand: Double? = null
+    private var lastResult: Double? = null
+    private var isNewCalculation = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         display = findViewById(R.id.display)
+        operationDisplay = findViewById(R.id.operation_display)
 
         setupNumberButtons()
         setupOperatorButtons()
@@ -29,6 +33,10 @@ class MainActivity : AppCompatActivity() {
         
         numberIds.forEach { id ->
             findViewById<Button>(id).setOnClickListener {
+                if (isNewCalculation) {
+                    currentInput.clear()
+                    isNewCalculation = false
+                }
                 currentInput.append((it as Button).text)
                 updateDisplay()
             }
@@ -72,37 +80,68 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDisplay() {
-        display.text = currentInput.toString()
+        display.text = if (currentInput.isEmpty()) "0" else currentInput.toString()
+    }
+
+    private fun updateOperationDisplay() {
+        operationDisplay.text = when {
+            firstOperand != null && currentOperator != null -> 
+                "${formatResult(firstOperand!!)} $currentOperator"
+            lastResult != null -> formatResult(lastResult!!)
+            else -> ""
+        }
     }
 
     private fun handleOperator(operator: String) {
-        if (currentInput.isNotEmpty()) {
+        if (currentInput.isNotEmpty() || lastResult != null) {
             if (firstOperand == null) {
-                firstOperand = currentInput.toString().toDouble()
+                firstOperand = currentInput.toString().toDoubleOrNull() ?: lastResult
                 currentOperator = operator
                 currentInput.clear()
+                isNewCalculation = false
             } else {
                 calculateResult()
                 currentOperator = operator
             }
+            updateOperationDisplay()
+        } else if (firstOperand != null) {
+            currentOperator = operator
+            updateOperationDisplay()
         }
     }
 
     private fun calculateResult() {
-        if (firstOperand != null && currentOperator != null && currentInput.isNotEmpty()) {
-            val secondOperand = currentInput.toString().toDouble()
+        if (firstOperand != null && currentOperator != null && (currentInput.isNotEmpty() || lastResult != null)) {
+            val secondOperand = currentInput.toString().toDoubleOrNull() ?: lastResult ?: return
             val result = when (currentOperator) {
                 "+" -> firstOperand!! + secondOperand
                 "-" -> firstOperand!! - secondOperand
                 "×" -> firstOperand!! * secondOperand
-                "÷" -> firstOperand!! / secondOperand
+                "÷" -> {
+                    if (secondOperand == 0.0) {
+                        display.text = "Error"
+                        clearAll()
+                        return
+                    }
+                    firstOperand!! / secondOperand
+                }
                 else -> return
             }
-            display.text = result.toString()
+            display.text = formatResult(result)
+            lastResult = result
             firstOperand = result
             currentInput.clear()
-            currentInput.append(result)
             currentOperator = null
+            isNewCalculation = true
+            updateOperationDisplay()
+        }
+    }
+
+    private fun formatResult(result: Double): String {
+        return if (result == result.toLong().toDouble()) {
+            result.toLong().toString()
+        } else {
+            String.format("%.8f", result).trimEnd('0').trimEnd('.')
         }
     }
 
@@ -110,7 +149,10 @@ class MainActivity : AppCompatActivity() {
         currentInput.clear()
         firstOperand = null
         currentOperator = null
+        lastResult = null
+        isNewCalculation = true
         updateDisplay()
+        updateOperationDisplay()
     }
 
     private fun clearEntry() {
@@ -127,7 +169,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun addDecimal() {
         if (!currentInput.contains(".")) {
-            if (currentInput.isEmpty()) currentInput.append("0")
+            if (currentInput.isEmpty() || isNewCalculation) {
+                currentInput.clear()
+                currentInput.append("0")
+                isNewCalculation = false
+            }
             currentInput.append(".")
             updateDisplay()
         }
@@ -140,6 +186,11 @@ class MainActivity : AppCompatActivity() {
             } else {
                 currentInput.insert(0, "-")
             }
+            updateDisplay()
+        } else if (lastResult != null) {
+            currentInput.append((-lastResult!!).toString())
+            lastResult = null
+            isNewCalculation = false
             updateDisplay()
         }
     }

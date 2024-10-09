@@ -4,16 +4,32 @@
     android:layout_height="match_parent"
     android:padding="16dp">
 
-    <TextView
-        android:id="@+id/display"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:gravity="end"
-        android:text="0"
-        android:textSize="48sp"
+        android:orientation="vertical"
         android:background="#D3D3D3"
-        android:padding="16dp"/>
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/operation_display"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textSize="18sp"
+            android:textColor="#808080"
+            android:padding="8dp"/>
+
+        <TextView
+            android:id="@+id/display"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="end|bottom"
+            android:text="0"
+            android:textSize="48sp"/>
+    </LinearLayout>
 
     <LinearLayout
         android:orientation="vertical"
