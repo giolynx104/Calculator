@@ -1,29 +1,62 @@
 package com.example.calculator
 
 import android.os.Bundle
-import android.widget.Button
-import android.widget.TextView
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 
 class MainActivity : AppCompatActivity() {
     private lateinit var display: TextView
     private lateinit var operationDisplay: TextView
+    private lateinit var menuButton: ImageButton
+    private lateinit var calculatorModeText: TextView
+    private lateinit var standardCalculator: View
+    private lateinit var currencyConverter: View
+    private lateinit var amountFrom: EditText
+    private lateinit var amountTo: EditText
+    private lateinit var spinnerFrom: Spinner
+    private lateinit var spinnerTo: Spinner
+
     private var currentInput = StringBuilder()
     private var currentOperator: String? = null
     private var firstOperand: Double? = null
     private var lastResult: Double? = null
     private var isNewCalculation = true
 
+    private val exchangeRates = mapOf(
+        "USD" to 1.0,
+        "EUR" to 0.84,
+        "GBP" to 0.72,
+        "JPY" to 110.33,
+        "VND" to 25440.0  // Updated VND exchange rate
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        display = findViewById(R.id.display)
-        operationDisplay = findViewById(R.id.operation_display)
-
+        initializeViews()
         setupNumberButtons()
         setupOperatorButtons()
         setupSpecialButtons()
+        setupMenuButton()
+        setupCurrencyConverter()
+    }
+
+    private fun initializeViews() {
+        display = findViewById(R.id.display)
+        operationDisplay = findViewById(R.id.operation_display)
+        menuButton = findViewById(R.id.menu_button)
+        calculatorModeText = findViewById(R.id.calculator_mode)
+        standardCalculator = findViewById(R.id.standard_calculator)
+        currencyConverter = findViewById(R.id.currency_converter)
+        amountFrom = findViewById(R.id.amount_from)
+        amountTo = findViewById(R.id.amount_to)
+        spinnerFrom = findViewById(R.id.spinner_from)
+        spinnerTo = findViewById(R.id.spinner_to)
     }
 
     private fun setupNumberButtons() {
@@ -76,6 +109,97 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.button_sign).setOnClickListener {
             changeSign()
+        }
+    }
+
+    private fun setupMenuButton() {
+        menuButton.setOnClickListener {
+            showPopupMenu()
+        }
+    }
+
+    private fun showPopupMenu() {
+        val popup = PopupMenu(this, menuButton)
+        popup.menuInflater.inflate(R.menu.calculator_menu, popup.menu)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.standard_mode -> switchToStandardMode()
+                R.id.currency_mode -> switchToCurrencyMode()
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun switchToStandardMode() {
+        calculatorModeText.text = "Standard"
+        standardCalculator.visibility = View.VISIBLE
+        currencyConverter.visibility = View.GONE
+    }
+
+    private fun switchToCurrencyMode() {
+        calculatorModeText.text = "Currency Converter"
+        standardCalculator.visibility = View.GONE
+        currencyConverter.visibility = View.VISIBLE
+    }
+
+    private fun setupCurrencyConverter() {
+        val currencies = arrayOf("USD", "EUR", "GBP", "JPY", "VND")  // Added VND to the array
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, currencies)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerFrom.adapter = adapter
+        spinnerTo.adapter = adapter
+
+        spinnerFrom.setSelection(0)
+        spinnerTo.setSelection(1)
+
+        amountFrom.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                if (!s.isNullOrEmpty() && amountFrom.hasFocus()) {
+                    convertCurrency(true)
+                }
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        amountTo.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                if (!s.isNullOrEmpty() && amountTo.hasFocus()) {
+                    convertCurrency(false)
+                }
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        spinnerFrom.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                convertCurrency(true)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        spinnerTo.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                convertCurrency(true)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun convertCurrency(isFromCurrency: Boolean) {
+        val fromCurrency = spinnerFrom.selectedItem.toString()
+        val toCurrency = spinnerTo.selectedItem.toString()
+
+        if (isFromCurrency) {
+            val fromAmount = amountFrom.text.toString().toDoubleOrNull() ?: 0.0
+            val toAmount = fromAmount * (exchangeRates[toCurrency]!! / exchangeRates[fromCurrency]!!)
+            amountTo.setText(String.format("%.2f", toAmount))
+        } else {
+            val toAmount = amountTo.text.toString().toDoubleOrNull() ?: 0.0
+            val fromAmount = toAmount * (exchangeRates[fromCurrency]!! / exchangeRates[toCurrency]!!)
+            amountFrom.setText(String.format("%.2f", fromAmount))
         }
     }
 
